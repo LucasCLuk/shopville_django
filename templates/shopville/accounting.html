@@ -1,0 +1,196 @@
+{% extends "shopville/dashboard-base.html" %}
+{% load static %}
+
+{% block csss %}
+    <!-- DataTables -->
+    <link href="{% static "/plugins/datatables/dataTables.bootstrap4.min.css" %}" rel="stylesheet" type="text/css"/>
+    <link href="{% static "/plugins/datatables/buttons.bootstrap4.min.css" %}" rel="stylesheet" type="text/css"/>
+
+    <!-- DateRangePicker -->
+    <link rel="stylesheet" type="text/css"
+          href="{% static "/plugins/bootstrap-daterangepicker/daterangepicker.css" %}"/>
+
+    <!-- Select2 -->
+    <link href="{% static "/plugins/select2/css/select2.css" %}" rel="stylesheet"/>
+
+
+{% endblock %}
+
+{% block content %}
+
+    <div class="content">
+
+        {% if user.is_staff %}
+            <div class="row">
+                <div class="col-md-9"></div>
+                <div class="col-md-3">
+                    <div class="card">
+                        <div class="card-body">
+                            <select id="buyer-select" name="buyer" class="dropdown-black">
+                                <option value="-1">Select A Buyer</option>
+                                {% for buyer in buyers %}
+                                    <option value="{{ buyer.id }}">{{ buyer.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        {% endif %}
+
+        <div class="row">
+            <div class="col-md-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h4 class="card-title">Purchases</h4>
+                    </div>
+                    <div class="card-body">
+                        <div class="col-md-3 float-right">
+                            <div id="reportrange"
+                                 style="background: #fff; cursor: pointer; padding: 5px 10px; border: 1px solid #ccc; width: 100%">
+                                <i class="fa fa-calendar"></i>&nbsp;
+                                <span></span> <i class="fa fa-caret-down"></i>
+                            </div>
+                        </div>
+
+                        <div class="table-responsive">
+                            <table id="item_table" class="table display"
+                                   style="width:100%">
+                                <thead>
+                                <tr>
+                                    <th>Order #</th>
+                                    <th>Name</th>
+                                    <th>Unit Price</th>
+                                    <th>Quantity</th>
+                                    <th>Store</th>
+                                    <th>Discount</th>
+                                    <th>Purchased</th>
+                                </tr>
+                                </thead>
+                                <tbody>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+{% endblock %}
+
+{% block javascript %}
+    <!-- Required datatable js -->
+    <script src="{% static "plugins/datatables/jquery.dataTables.min.js" %}"></script>
+    <script src="{% static "plugins/datatables/dataTables.bootstrap4.min.js" %}"></script>
+    <!-- Buttons examples -->
+    <script src="{% static "plugins/datatables/dataTables.buttons.min.js" %}"></script>
+    <script src="{% static "plugins/datatables/buttons.bootstrap4.min.js" %}"></script>
+    <script src="{% static "plugins/datatables/jszip.min.js" %}"></script>
+    <script src="{% static "plugins/datatables/pdfmake.min.js" %}"></script>
+    <script src="{% static "plugins/datatables/vfs_fonts.js" %}"></script>
+    <script src="{% static "plugins/datatables/buttons.html5.min.js" %}"></script>
+    <script src="{% static "plugins/datatables/buttons.print.min.js" %}"></script>
+
+    <!-- Responsive examples -->
+    <script src="{% static "plugins/datatables/dataTables.responsive.min.js" %}"></script>
+    <script src="{% static "plugins/datatables/responsive.bootstrap4.min.js" %}"></script>
+
+    <!-- DateRangePicker -->
+    <script type="text/javascript" src="https://cdn.jsdelivr.net/momentjs/latest/moment.min.js"></script>
+    <script type="text/javascript" src="{% static "/plugins/bootstrap-daterangepicker/daterangepicker.js" %}"></script>
+
+    <!-- Select2 -->
+    <script src="{% static "/plugins/select2/js/select2.full.js" %}"></script>
+
+    <script type="application/javascript">
+        $(document).ready(function () {
+            let daterangepicker = $('#reportrange');
+            let buyer_select = $('#buyer-select');
+
+            var start = moment().subtract(29, 'days');
+            var end = moment();
+            var buyer = "{{ buyer.id|default_if_none:"-1" }}";
+
+            function cb(start, end) {
+                $('#reportrange span').html(start.format('MMMM D, YYYY') + ' - ' + end.format('MMMM D, YYYY'));
+            }
+
+            daterangepicker.daterangepicker({
+                startDate: start,
+                endDate: end,
+                ranges: {
+                    'Today': [moment(), moment()],
+                    'Yesterday': [moment().subtract(1, 'days'), moment().subtract(1, 'days')],
+                    'Last 7 Days': [moment().subtract(6, 'days'), moment()],
+                    'Last 30 Days': [moment().subtract(29, 'days'), moment()],
+                    'This Month': [moment().startOf('month'), moment().endOf('month')],
+                    'Last Month': [moment().subtract(1, 'month').startOf('month'), moment().subtract(1, 'month').endOf('month')],
+                    "All Time": [moment().subtract(10, "years").startOf("year"), moment()]
+                }
+            }, cb);
+
+            cb(start, end);
+
+            let table = $("#item_table").DataTable({
+                responsive: true,
+                fixedHeader: true,
+                deferRender: true,
+                ajax: {
+                    url: "{% url "rest_api:items" %}",
+                    data: function (d) {
+                        d.purchased_from = start.format('YYYY-MM-DD');
+                        d.purchased_to = end.format('YYYY-MM-DD');
+                        d.buyer = buyer;
+                    },
+                    dataSrc: ""
+                },
+                columns: [
+                    {"data": "order"},
+                    {"data": "name"},
+                    {"data": "unit_price"},
+                    {"data": "quantity"},
+                    {"data": "store"},
+                    {"data": "discount"},
+                    {"data": "purchased"},
+
+                ],
+                dom: 'Bfrtip',
+                buttons: [{
+                    extend: 'excelHtml5',
+                    text: 'Save as Excel',
+                    customize: function (xlsx) {
+                        var sheet = xlsx.xl.worksheets['sheet1.xml'];
+                        $('row:first c', sheet).attr('s', '42');
+                    }
+                }, 'pdf', 'print'
+                ]
+            });
+
+            daterangepicker.on('apply.daterangepicker', function (ev, picker) {
+                start = picker.startDate;
+                end = picker.endDate;
+                table.ajax.reload();
+            });
+
+
+            buyer_select.select2({
+                placeholder: 'Select a Buyer',
+                width: "100%",
+            });
+
+            buyer_select.on("select2:select", function (e) {
+                let selected_element = $(e.currentTarget);
+                if (selected_element.val() !== "-1") {
+                    buyer = selected_element.val();
+                    table.ajax.reload();
+                }
+            });
+
+        })
+
+
+    </script>
+
+{% endblock %}

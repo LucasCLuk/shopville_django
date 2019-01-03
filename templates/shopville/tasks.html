@@ -1,0 +1,117 @@
+{% extends "shopville/dashboard-base.html" %}
+{% load static %}
+
+{% block csss %}
+
+    <link href="https://cdn.datatables.net/select/1.2.7/css/select.dataTables.min.css" rel="stylesheet" type="text/css">
+    <link href="https://cdn.datatables.net/buttons/1.5.2/css/buttons.dataTables.min.css" rel="stylesheet"
+          type="text/css">
+{% endblock %}
+
+{% block content %}
+
+    <div class="content">
+        <div class="row">
+            <div class="col-md-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h4 class="card-title">Reader Manager</h4>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table id="buyer-table" class="table display" style="width: 100%">
+                                <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Buyer</th>
+                                    <th>Last Ran</th>
+                                    <th>Running</th>
+                                    <th>Last Successful Scan</th>
+                                    <th>Next Scan</th>
+                                </tr>
+                                </thead>
+                                <tbody>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+{% endblock %}
+
+{% block javascript %}
+
+    <!-- Required datatable js -->
+    <script src="{% static "plugins/datatables/jquery.dataTables.min.js" %}"></script>
+    <script src="{% static "plugins/datatables/dataTables.bootstrap4.min.js" %}"></script>
+    <!-- Buttons examples -->
+    <script src="{% static "plugins/datatables/dataTables.buttons.min.js" %}"></script>
+    <script src="{% static "plugins/datatables/buttons.bootstrap4.min.js" %}"></script>
+    <script src="{% static "plugins/datatables/jszip.min.js" %}"></script>
+    <script src="{% static "plugins/datatables/pdfmake.min.js" %}"></script>
+    <script src="{% static "plugins/datatables/vfs_fonts.js" %}"></script>
+    <script src="{% static "plugins/datatables/buttons.html5.min.js" %}"></script>
+    <script src="{% static "plugins/datatables/buttons.print.min.js" %}"></script>
+    <script src="https://cdn.datatables.net/select/1.2.7/js/dataTables.select.min.js"></script>
+
+    <!-- Responsive examples -->
+    <script src="{% static "plugins/datatables/dataTables.responsive.min.js" %}"></script>
+    <script src="{% static "plugins/datatables/responsive.bootstrap4.min.js" %}"></script>
+    <script src="{% static "assets/js/api-requests.js" %}"></script>
+
+    <script type="application/javascript">
+
+
+        $(document).ready(function () {
+            let table = $('#buyer-table').DataTable({
+                select: true,
+                searching: false,
+                ajax: {
+                    url: "{% url "rest_api:get-buyers" %}",
+                    dataSrc: ""
+                },
+                lengthChange: false,
+                responsive: true,
+                columnDefs: [
+                    {
+                        "targets": [0],
+                        "visible": false,
+                        "searchable": false
+                    },
+                ],
+                columns: [
+                    {"data": "id"},
+                    {"data": "name"},
+                    {"data": "last_scan", defaultContent: "Never"},
+                    {"data": "currently_scanning", defaultContent: "False"},
+                    {"data": "last_successful", defaultContent: "Never"},
+                    {"data": "next_scan", defaultContent: "Never"}
+                ],
+                dom: 'Bfrtip',
+                buttons: [
+                    {
+                        text: "Scan Emails",
+                        action: function (event, dt, node, config) {
+                            showNotification("top", "right", "Scanning");
+                            var data = table.rows({selected: true}).data();
+                            for (let key in data) {
+                                let row = data[key];
+                                if (row.hasOwnProperty("id")) {
+                                    $.ajax(
+                                        `/api/buyers/${row.id}/process`
+                                    )
+                                }
+                            }
+                            table.ajax.reload();
+                            showNotification("top", "right", "Finished Scanning");
+                        }
+                    }
+                ]
+            })
+        })
+    </script>
+
+{% endblock %}
