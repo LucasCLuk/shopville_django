@@ -211,3 +211,6 @@ modules.xml
 # End of https://www.gitignore.io/api/django,pycharm+all
 secret\_settings\.py
 settings\.py
+deploy\.sh
+
+id_rsa
