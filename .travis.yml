@@ -1,6 +1,6 @@
 language: python
 python:
-  - '3.7'
+  - '3.7.1'
 install:
   - pip install -r requirements.txt
   - echo $SSH_KEY >> $HOME/.ssh/known_hosts
